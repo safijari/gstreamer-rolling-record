@@ -53,32 +53,30 @@ class Plugin:
 
         # Video Pipeline
         # videoPipeline = "pipewiresrc do-timestamp=true ! vaapipostproc ! queue ! vaapih264enc ! h264parse ! mp4mux name=sink !"
-    
-        videoPipeline = "ximagesrc ! video/x-raw,framerate=5/1 ! videoconvert ! theoraenc ! oggmux name=sink !"
+        # videoPipeline = "ximagesrc ! video/x-raw,framerate=30/1 ! videoconvert ! queue ! timeoverlay ! theoraenc ! theoraparse !"
+        monitor = "alsa_output.pci-0000_00_1f.3.analog-stereo" + ".monitor"
+        videoPipeline = "ximagesrc ! video/x-raw,framerate=60/1 ! videoconvert ! queue ! timeoverlay ! x264enc key-int-max=10 ! h264parse "
+        videoPipeline += " ! splitmuxsink name=sink muxer=mp4mux muxer-pad-map=x-pad-map,audio=vid location=/tmp/rolling%02d.mp4 max-size-time=1000000000"
+        # videoPipeline += f""" pulsesrc device = "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor" ! audioconvert ! lamemp3enc target=bitrate bitrate=128 cbr=true ! sink.audio_0"""
+        # videoPipeline += "! mp4mux name=sink ! filesink location=/tmp/test.mp4 "
+        videoPipeline += f""" pulsesrc device = "alsa_output.pci-0000_00_1f.3.analog-stereo.monitor" ! audioconvert ! queue ! lamemp3enc target=bitrate bitrate=128 ! mpegaudioparse ! sink.audio_0"""
         cmd = "{} {}".format(start_command, videoPipeline)
 
-        # If mode is localFile
-        if self._mode == "localFile":
-            logger.info("Local File Recording")
-            dateTime = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-            self._tmpFilepath = "{}/Decky-Recorder_{}.mp4".format(TMPLOCATION, dateTime)
-            self._filepath = "{}/Decky-Recorder_{}.{}".format(
-                self._localFilePath, dateTime, self._fileformat
-            )
-            fileSinkPipeline = " filesink location={}".format(self._tmpFilepath)
-            cmd = cmd + fileSinkPipeline
-        else:
-            logger.info("Mode {} does not exist".format(self._mode))
-            return
+        # # If mode is localFile
+        # if self._mode == "localFile":
+        #     logger.info("Local File Recording")
+        #     dateTime = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+        #     # self._tmpFilepath = "{}/Decky-Recorder_{}.mp4".format(TMPLOCATION, dateTime)
+        #     # self._filepath = "{}/Decky-Recorder_{}.{}".format(
+        #     #     self._localFilePath, dateTime, self._fileformat
+        #     # )
+        #     # fileSinkPipeline = " splitmuxsink location=/tmp/plugin%02d.mp4 max-size-time=1000000000"
+        #     # cmd = cmd + fileSinkPipeline
+        # else:
+        #     logger.info("Mode {} does not exist".format(self._mode))
+        #     return
 
         # Creates audio pipeline
-        # monitor = subprocess.getoutput("pactl get-default-sink") + ".monitor"
-        # cmd = (
-        #     cmd
-        #     + ' pulsesrc device="Recording_{}" ! audioconvert ! lamemp3enc target=bitrate bitrate={} cbr=true ! sink.audio_0'.format(
-        #         monitor, self._audioBitrate
-        #     )
-        # )
 
         # Starts the capture process
         logger.info("Command: " + cmd)
@@ -102,22 +100,22 @@ class Plugin:
         self._recording_process = None
         logger.info("Recording stopped!")
 
-        # if recording was a local file
-        if self._mode == "localFile":
-            logger.info("Repairing file")
-            ffmpegCmd = "ffmpeg -i {} -c copy {}".format(
-                self._tmpFilepath, self._filepath
-            )
-            logger.info("Command: " + ffmpegCmd)
-            self._tmpFilepath = None
-            self._filepath = None
-            ffmpeg = subprocess.Popen(
-                ffmpegCmd, shell=True, stdout=std_out_file, stderr=std_err_file
-            )
-            ffmpeg.wait()
-            logger.info("File copied with ffmpeg")
-            os.remove(self._tmpFilepath)
-            logger.info("Tmpfile deleted")
+        # # if recording was a local file
+        # if self._mode == "localFile":
+        #     logger.info("Repairing file")
+        #     ffmpegCmd = "ffmpeg -i {} -c copy {}".format(
+        #         self._tmpFilepath, self._filepath
+        #     )
+        #     logger.info("Command: " + ffmpegCmd)
+        #     self._tmpFilepath = None
+        #     self._filepath = None
+        #     ffmpeg = subprocess.Popen(
+        #         ffmpegCmd, shell=True, stdout=std_out_file, stderr=std_err_file
+        #     )
+        #     ffmpeg.wait()
+        #     logger.info("File copied with ffmpeg")
+        #     os.remove(self._tmpFilepath)
+        #     logger.info("Tmpfile deleted")
         return
 
     # Returns true if the plugin is currently capturing
@@ -193,7 +191,7 @@ class Plugin:
 def main():
     p = Plugin()
     p.start_capturing()
-    time.sleep(2)
+    time.sleep(5)
     p.stop_capturing()
 
 
